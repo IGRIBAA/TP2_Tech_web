@@ -1,4 +1,5 @@
 package comptoirs.service;
+import java.util.NoSuchElementException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -104,11 +105,49 @@ public class CommandeService {
      * @throws jakarta.validation.ConstraintViolationException si la quantité n'est
      *                                                         pas positive
      */
-    @Transactional
+    /*@Transactional
     public Ligne ajouterLigne(int commandeNum, int produitRef, @Positive int quantite) {
         // TODO : implémenter cette méthode
         throw new UnsupportedOperationException("Pas encore implémenté");
+    }*/
+    @Transactional
+    public Ligne ajouterLigne(int commandeNum, int produitRef, @Positive int quantite) {
+        // Vérifier si la commande existe
+        var commande = commandeDao.findById(commandeNum).orElseThrow(() -> new NoSuchElementException("La commande n'existe pas"));
+
+        // Vérifier si le produit existe
+        var produit = produitDao.findById(produitRef).orElseThrow(() -> new NoSuchElementException("Le produit n'existe pas"));
+
+        // Vérifier si la commande a déjà été envoyée
+        if (commande.getEnvoyeele() != null) {
+            throw new IllegalStateException("La commande a déjà été envoyée.");
+        }
+
+        // Vérifier que la quantité est positive
+        if (quantite <= 0) {
+            throw new IllegalArgumentException("La quantité doit être positive.");
+        }
+
+        // Vérifier si le stock est suffisant
+        if (produit.getUnitesEnStock() < quantite) {
+            throw new IllegalStateException("Le stock est insuffisant.");
+        }
+
+        // Mettre à jour les quantités
+        produit.setUnitesEnStock(produit.getUnitesEnStock() - quantite);
+        produit.setUnitesCommandees(produit.getUnitesCommandees() + quantite);
+
+        // Créer une nouvelle ligne de commande
+        Ligne ligne = new Ligne(commande, produit, quantite);
+
+        // Sauvegarder la ligne de commande
+        ligneDao.save(ligne);
+
+        // Retourner la ligne ajoutée
+        return ligne;
     }
+
+
 
     /**
      * Service métier : Enregistre l'expédition d'une commande connue par sa clé
@@ -128,9 +167,37 @@ public class CommandeService {
      * @throws java.util.NoSuchElementException si la commande n'existe pas
      * @throws IllegalStateException            si la commande a déjà été envoyée
      */
-    @Transactional
+    /*@Transactional
     public Commande enregistreExpedition(int commandeNum) {
         // TODO : implémenter cette méthode
         throw new UnsupportedOperationException("Pas encore implémenté");
+    }*/
+
+    @Transactional
+    public Commande enregistreExpedition(int commandeNum) {
+        var commande = commandeDao.findById(commandeNum).orElseThrow();
+
+        // Utilisez le nom correct de la propriété envoyeele
+        if (commande.getEnvoyeele() != null) {
+            throw new IllegalStateException("La commande a déjà été envoyée.");
+        }
+
+        // Enregistrement de la date d'expédition
+        commande.setEnvoyeele(LocalDate.now());
+
+        // Mise à jour des produits
+        for (Ligne ligne : commande.getLignes()) {
+            var produit = ligne.getProduit();
+            produit.setUnitesEnStock(produit.getUnitesEnStock() - ligne.getQuantite());
+            produit.setUnitesCommandees(produit.getUnitesCommandees() - ligne.getQuantite());
+            produitDao.save(produit);  // Sauvegarde du produit après mise à jour
+        }
+
+        // Enregistrement de la commande après l'expédition
+        commandeDao.save(commande);
+        return commande;
     }
+
+
+
 }

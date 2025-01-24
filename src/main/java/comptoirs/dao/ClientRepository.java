@@ -11,13 +11,14 @@ import java.util.Optional;
 // This will be AUTO IMPLEMENTED by Spring into a Bean called ProductCodeRepository
 // CRUD refers Create, Read, Update, Delete
 
-public interface ClientRepository extends JpaRepository<Client, String> {
+public interface  ClientRepository extends JpaRepository<Client, String> {
     /**
      * Calcule le nombre d'articles commandés par un client
      * @param clientCode la clé du client
      */
-    @Query("SELECT 0")
+    @Query("SELECT COALESCE(SUM(l.quantite), 0) FROM Commande c JOIN c.lignes l WHERE c.client.code = :clientCode")
     int nombreArticlesCommandesPar(String clientCode);
+
 
     /**
      * Recherche un client par son nom de société
