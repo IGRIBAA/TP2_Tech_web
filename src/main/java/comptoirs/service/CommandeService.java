@@ -67,7 +67,7 @@ public class CommandeService {
         if (nbArticles > 100) {
             nouvelleCommande.setRemise(new BigDecimal("0.15"));
         }
-        // On enregistre la commande (génère la clé)
+        // On enregistre la commande 
         commandeDao.save(nouvelleCommande);
         return nouvelleCommande;
     }
